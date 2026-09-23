@@ -21,6 +21,7 @@ paths:
       operationId: registerCustomer
       tags:
         - Authentication
+
       requestBody:
         required: true
         content:
@@ -61,6 +62,7 @@ paths:
                   format: uri
                   nullable: true
                   example: "https://example.com/profile.jpg"
+
       responses:
         "201":
           description: Customer registered successfully
@@ -74,10 +76,11 @@ paths:
   /auth/login:
     post:
       summary: Login
-      description: Authenticates a user and returns authentication tokens.
+      description: Authenticates a user and creates an authenticated session using a secure cookie.
       operationId: loginUser
       tags:
         - Authentication
+
       requestBody:
         required: true
         content:
@@ -97,10 +100,171 @@ paths:
                   type: string
                   format: password
                   example: "Password123!"
+
       responses:
         "200":
-          description: Login successful
+          description: Login successful. An authentication cookie is set.
+
         "400":
           description: Invalid request data
+
         "401":
           description: Invalid email or password
+
+  /auth/google:
+    get:
+      summary: Login with Google
+      description: Initiates the Google OAuth 2.0 authentication flow.
+      operationId: googleLogin
+      tags:
+        - Authentication
+      responses:
+        "302":
+          description: Redirects the user to Google for authentication.
+
+  /auth/google/callback:
+    get:
+      summary: Google OAuth callback
+      description: Handles the callback from Google after successful authentication and creates an authenticated session.
+      operationId: googleCallback
+      tags:
+        - Authentication
+
+      parameters:
+        - name: code
+          in: query
+          required: true
+          description: Authorization code returned by Google.
+          schema:
+            type: string
+
+        - name: state
+          in: query
+          required: true
+          description: State value used to protect against CSRF attacks.
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Authentication successful. Redirects the user to the application and sets the authentication cookie.
+
+        "400":
+          description: Invalid OAuth callback parameters
+
+        "401":
+          description: Google authentication failed
+
+  /auth/logout:
+    post:
+      summary: Logout
+      description: Ends the authenticated user's session.
+      operationId: logoutUser
+      tags:
+        - Authentication
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: Logout successful
+        "401":
+          description: Unauthorized. Authentication is required.
+
+  /auth/forgot-password:
+    post:
+      summary: Request password reset
+      description: Sends a password reset link to the user's email address.
+      operationId: requestPasswordReset
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: sophie@example.com
+      responses:
+        "200":
+          description: Password reset link sent successfully.
+        "400":
+          description: Invalid email address.
+
+  /auth/reset-password:
+    post:
+      summary: Reset password
+      description: Resets the user's password using a valid password reset token.
+      operationId: resetPassword
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - password
+              properties:
+                token:
+                  type: string
+                  example: "abc123resetToken"
+                password:
+                  type: string
+                  format: password
+                  example: "NewPassword123!"
+      responses:
+        "200":
+          description: Password reset successfully.
+        "400":
+          description: Invalid or expired reset token.
+
+  /auth/change-password:
+    post:
+      summary: Change password
+      description: Changes the authenticated user's password.
+      operationId: changePassword
+      tags:
+        - Authentication
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassword
+                - newPassword
+              properties:
+                currentPassword:
+                  type: string
+                  format: password
+                  example: "OldPassword123!"
+                newPassword:
+                  type: string
+                  format: password
+                  example: "NewPassword123!"
+      responses:
+        "200":
+          description: Password changed successfully.
+        "400":
+          description: Invalid request data.
+        "401":
+          description: Unauthorized or current password is incorrect.
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sessionId
+      description: |
+        HTTP-only authentication cookie used to maintain the user's authenticated session.
